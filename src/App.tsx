@@ -2,10 +2,11 @@ import { createMemo, createSignal } from 'solid-js'
 import './App.css'
 import { compile } from 'rustedscript'
 
-function App() {
+export function App() {
   const [src, setSrc] = createSignal(`@type('number') let a
 fn test() {
   a = a + 1
+  __asm_code('debugMessage', 'Hello World')
   if a > 1 {
     a = a - 1
   } else if a < 1 {
@@ -48,6 +49,21 @@ fn test() {
           RustedScript 在线编译
         </span>
       </div>
+      <div style={{ margin: '5px' }}>
+        <div>相关链接：</div>
+        <div>
+          项目仓库：
+          <a href='https://github.com/zerodegress/rustedscript'>
+            https://github.com/zerodegress/rustedscript
+          </a>
+        </div>
+        <div>
+          Wiki文档：
+          <a href='https://github.com/zerodegress/rustedscript/wiki'>
+            https://github.com/zerodegress/rustedscript/wiki
+          </a>
+        </div>
+      </div>
       <div
         style={{
           display: 'flex',
@@ -77,7 +93,16 @@ fn test() {
             'align-items': 'center',
           }}
         >
-          <button>编译！</button>
+          <button
+            onClick={() => {
+              const distt = dist()
+              if (distt) {
+                navigator.clipboard.writeText(distt)
+              }
+            }}
+          >
+            复制rwini
+          </button>
         </div>
         <div>
           <div>rwini</div>

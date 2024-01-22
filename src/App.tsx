@@ -1,6 +1,18 @@
-import { createMemo, createSignal } from 'solid-js'
+import { createSignal, createResource } from 'solid-js'
 import './App.css'
-import { compile } from 'rustedscript'
+import Worker from './worker?worker&inline'
+import { CompileWorkerInputMessage, CompileWorkerOutputMessage } from './types'
+
+const worker = new Worker()
+
+function randomId() {
+  const charset = 'abcdefghijklmnopqrstuvwxyz'
+  let id = ''
+  for (let i = 0; i < 16; i++) {
+    id += charset[Math.floor(Math.random() * charset.length)]
+  }
+  return id
+}
 
 export function App() {
   const [src, setSrc] = createSignal(`@type('number') let a
@@ -15,20 +27,39 @@ fn test() {
     a = a * 2
   }
 }`)
-  const [err, setErr] = createSignal('')
-  const dist = createMemo(() => {
-    try {
-      const dist = compile(src())
-      setErr('')
-      return dist
-    } catch (e) {
-      if (e instanceof Error) {
-        setErr(e.message)
-      } else {
-        setErr('未知错误')
-      }
-    }
+  const [compileRes] = createResource(src, source => {
+    worker.postMessage({
+      type: 'compile',
+      src: source,
+      id: randomId(),
+    } as CompileWorkerInputMessage)
+    return new Promise<[string | undefined, string | undefined]>(resolve => {
+      worker.addEventListener(
+        'message',
+        (ev: MessageEvent<CompileWorkerOutputMessage>) => {
+          switch (ev.data.type) {
+            case 'compileSuccess':
+              return resolve([ev.data.dist, undefined])
+            case 'compileFailed':
+              return resolve([, ev.data.err])
+          }
+        },
+        { once: true },
+      )
+    })
   })
+  const dist = () =>
+    compileRes.loading
+      ? undefined
+      : compileRes.error
+        ? undefined
+        : compileRes()![0]
+  const err = () =>
+    compileRes.loading
+      ? undefined
+      : compileRes.error
+        ? `${compileRes.error}`
+        : compileRes()![1]
 
   return (
     <div
@@ -111,7 +142,7 @@ fn test() {
               color: 'red',
             }}
           >
-            {err()}
+            {err() || ''}
           </div>
           <textarea
             rows={50}
@@ -121,7 +152,7 @@ fn test() {
               margin: '5px',
               resize: 'none',
             }}
-            value={dist()}
+            value={dist() || ''}
           />
         </div>
       </div>
